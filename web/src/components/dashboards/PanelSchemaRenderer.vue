@@ -30,7 +30,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
         "
       ></GeoJSONMapRenderer>
         <GeoMapRenderer
-          v-if="panelSchema.type == 'geomap'"
+          v-else-if="panelSchema.type == 'geomap'"
           :data="
             panelData.chartType == 'geomap'
               ? panelData
@@ -76,7 +76,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
             (data.length &&
               data[0]?.length &&
               panelData.chartType != 'geomap' &&
-              panelData.chartType != 'table')
+              panelData.chartType != 'table' &&
+            panelData.chartType != 'maps')
               ? panelData
               : { options: { backgroundColor: 'transparent' } }
           "
