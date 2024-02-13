@@ -317,7 +317,7 @@ const useStreams = () => {
     store.dispatch("setIsDataIngested", false);
   };
 
-  return { getStreams, getStream, setStreams, getMultiStreams, resetStreams };
+  return { streams, getStreams, getStream, setStreams, getMultiStreams, resetStreams };
 };
 
 export default useStreams;
