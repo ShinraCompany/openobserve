@@ -24,8 +24,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
           </div>
         </div>
         <div class="col-auto">
-          <q-btn v-close-popup="true" round
-flat icon="close" />
+          <q-btn v-close-popup="true" round flat icon="close" />
         </div>
       </div>
     </q-card-section>
@@ -126,14 +125,8 @@ flat icon="close" />
                   <th width="30px">{{ t("logStream.deleteActionLabel") }}</th>
                   <th>{{ t("logStream.propertyName") }}</th>
                   <th>{{ t("logStream.propertyType") }}</th>
-                  <th v-if="showFullTextSearchColumn">
-                    {{ t("logStream.streamftsKey") }}
-                  </th>
-                  <th v-if="showPartitionColumn">
-                    {{ t("logStream.streamPartitionKey") }}
-                  </th>
-                  <th>
-                    {{ t("logStream.streamBloomKey") }}
+                  <th v-if="showFullTextSearchColumn" style="width: 220px">
+                    {{ t("logStream.indexType") }}
                   </th>
                 </tr>
               </thead>
@@ -157,37 +150,25 @@ flat icon="close" />
                   <td>{{ schema.name }}</td>
                   <td>{{ schema.type }}</td>
                   <td v-if="showFullTextSearchColumn" class="text-center">
-                    <q-checkbox
+                    <q-select
                       v-if="
                         schema.name !== store.state.zoConfig.timestamp_column
                       "
-                      :data-test="`schema-stream-${schema.name}-field-fts-key-checkbox`"
-                      v-model="schema.ftsKey"
-                      size="sm"
-                      @click="markFormDirty(schema.name, 'fts')"
-                    />
-                  </td>
-                  <td v-if="showPartitionColumn" class="text-center">
-                    <q-checkbox
-                      v-if="
-                        schema.name !== store.state.zoConfig.timestamp_column
-                      "
-                      :data-test="`schema-stream-${schema.name}-field-partition-key-checkbox`"
-                      v-model="schema.partitionKey"
-                      size="sm"
-                      @click="markFormDirty(schema.name, 'partition')"
-                    >
-                    </q-checkbox>
-                  </td>
-                  <td class="text-center">
-                    <q-checkbox
-                      v-if="
-                        schema.name !== store.state.zoConfig.timestamp_column
-                      "
-                      :data-test="`schema-stream-${schema.name}-field-bloom-key-checkbox`"
-                      v-model="schema.bloomKey"
-                      size="sm"
-                      @click="markFormDirty(schema.name, 'bloom')"
+                      v-model="schema.index_type"
+                      :options="streamIndexType"
+                      :popup-content-style="{ textTransform: 'capitalize' }"
+                      color="input-border"
+                      bg-color="input-bg"
+                      class="q-py-sm"
+                      map-options
+                      emit-value
+                      clearable
+                      stack-label
+                      outlined
+                      filled
+                      dense
+                      style="min-width: 200px"
+                      @update:model-value="markFormDirty(schema.name, 'fts')"
                     />
                   </td>
                 </tr>
@@ -291,6 +272,13 @@ export default defineComponent({
     const confirmQueryModeChangeDialog = ref(false);
     const formDirtyFlag = ref(false);
 
+    const streamIndexType = [
+      { label: "Hash based partition", value: "fullTextSearchKey" },
+      { label: "Key based partition", value: "partitionKey" },
+      { label: "Inverted index", value: "intertedIndex" },
+      { label: "Bloom filter", value: "bloomFilterKey" },
+    ];
+
     onBeforeMount(() => {
       dataRetentionDays.value = store.state.zoConfig.data_retention_days || 0;
     });
@@ -305,9 +293,8 @@ export default defineComponent({
       }
     };
 
-    const markFormDirty = (field_name: string, type: string) => {
+    const markFormDirty = () => {
       formDirtyFlag.value = true;
-      checkSingleSelection(field_name, type);
     };
 
     const deleteFields = async () => {
@@ -387,18 +374,14 @@ export default defineComponent({
               (res.data.settings.full_text_search_keys.length == 0 &&
                 store.state.zoConfig.default_fts_keys.includes(property.name))
             ) {
-              property.ftsKey = true;
-            } else {
-              property.ftsKey = false;
+              property.index_type = "fullTextSearchKey";
             }
 
             if (
               res.data.settings.bloom_filter_fields.length > 0 &&
               res.data.settings.bloom_filter_fields.includes(property.name)
             ) {
-              property.bloomKey = true;
-            } else {
-              property.bloomKey = false;
+              property.index_type = "bloomFilterKey";
             }
 
             property["delete"] = false;
@@ -409,7 +392,7 @@ export default defineComponent({
                 (v) => !v.disabled && v.field === property.name
               )
             ) {
-              property.partitionKey = true;
+              property.index_type = "partitionKey";
               property.level = Object.keys(
                 res.data.settings.partition_keys
               ).find(
@@ -417,8 +400,6 @@ export default defineComponent({
                   res.data.settings.partition_keys[key]["field"] ===
                   property.name
               );
-            } else {
-              property.partitionKey = false;
             }
           }
 
@@ -454,22 +435,22 @@ export default defineComponent({
 
       let added_part_keys = [];
       for (var property of indexData.value.schema) {
-        if (property.ftsKey) {
+        if (property.index_type === "fullTextSearchKey") {
           settings.full_text_search_keys.push(property.name);
         }
-        if (property.level && property.partitionKey) {
+        if (property.level && property.index_type === "partitionKey") {
           settings.partition_keys.push({
             field: property.name,
             types: "value",
           });
-        } else if (property.partitionKey) {
+        } else if (property.index_type === "partitionKey") {
           added_part_keys.push({
             field: property.name,
             types: "value",
           });
         }
 
-        if (property.bloomKey) {
+        if (property.index_type === "bloomFilterKey") {
           settings.bloom_filter_fields.push(property.name);
         }
 
@@ -529,41 +510,6 @@ export default defineComponent({
         modelValue.stream_type !== "enrichment_tables"
     );
 
-    const checkSingleSelection = (field_name: string, type: string) => {
-      var property: any;
-      if (type === "bloom") {
-        for (property of indexData.value.schema) {
-          if (property.name == field_name) {
-            if (property.bloomKey == true) {
-              property.ftsKey = false;
-              property.partitionKey = false;
-            }
-            break;
-          }
-        }
-      } else if (type === "fts") {
-        for (property of indexData.value.schema) {
-          if (property.name == field_name) {
-            if (property.ftsKey == true) {
-              property.bloomKey = false;
-              property.partitionKey = false;
-            }
-            break;
-          }
-        }
-      } else {
-        for (property of indexData.value.schema) {
-          if (property.name == field_name) {
-            if (property.partitionKey == true) {
-              property.bloomKey = false;
-              property.ftsKey = false;
-            }
-            break;
-          }
-        }
-      }
-    };
-
     return {
       t,
       q,
@@ -586,7 +532,7 @@ export default defineComponent({
       deleteFields,
       markFormDirty,
       formDirtyFlag,
-      checkSingleSelection,
+      streamIndexType,
     };
   },
   created() {
