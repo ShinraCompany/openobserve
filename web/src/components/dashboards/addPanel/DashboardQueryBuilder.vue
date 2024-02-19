@@ -18,7 +18,8 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
   <div
     v-if="
       !promqlMode &&
-      dashboardPanelData.data.type != 'geomap' && dashboardPanelData.data.type != 'maps' &&
+      dashboardPanelData.data.type != 'geomap' &&
+      dashboardPanelData.data.type != 'maps' &&
       dashboardPanelData.data.type != 'sankey'
     "
   >
@@ -913,7 +914,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
     </div>
   </div>
   <DashboardMapQueryBuilder />
-  <DashboardGeoMapQueryBuilder/>
+  <DashboardGeoMapQueryBuilder />
   <DashboardSankeyChartBuilder />
 </template>
 
@@ -935,8 +936,8 @@ export default defineComponent({
     DashboardMapQueryBuilder,
     SortByBtnGrp,
     HistogramIntervalDropDown,
-    DashboardGeoMapQueryBuilder
-    DashboardSankeyChartBuilder
+    DashboardGeoMapQueryBuilder,
+    DashboardSankeyChartBuilder,
   },
   setup() {
     const showXAxis = ref(true);
@@ -970,7 +971,7 @@ export default defineComponent({
       isAddZAxisNotAllowed,
       cleanupDraggingFields,
     } = useDashboardPanelData();
-    
+
     const triggerOperators = [
       { label: t("dashboard.count"), value: "count" },
       { label: t("dashboard.countDistinct"), value: "count-distinct" },
