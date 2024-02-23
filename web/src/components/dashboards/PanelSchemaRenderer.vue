@@ -191,6 +191,11 @@ export default defineComponent({
       required: true,
       type: Object,
     },
+    forceLoad: {
+      type: Boolean,
+      // default: true,
+      required: true,
+    }
   },
   emits: [
     "updated:data-zoom",
@@ -210,8 +215,7 @@ export default defineComponent({
     const drilldownPopUpRef: any = ref(null);
 
     // get refs from props
-    const { panelSchema, selectedTimeObj, variablesData } = toRefs(props);
-    const forceLoad: any = ref(true);
+    const { panelSchema, selectedTimeObj, variablesData, forceLoad } = toRefs(props);
     // calls the apis to get the data based on the panel config
     let { data, loading, errorDetail, metadata } = usePanelDataLoader(
       panelSchema,
