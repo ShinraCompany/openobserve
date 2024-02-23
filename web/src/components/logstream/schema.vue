@@ -159,7 +159,12 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                       :popup-content-style="{ textTransform: 'capitalize' }"
                       color="input-border"
                       bg-color="input-bg"
-                      class="q-py-sm"
+                      class="q-py-sm stream-schema-index-select"
+                      :option-disable="
+                        (_option) => disableOptions(schema, _option)
+                      "
+                      multiple
+                      :max-values="2"
                       map-options
                       emit-value
                       clearable
@@ -167,7 +172,7 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
                       outlined
                       filled
                       dense
-                      style="min-width: 200px"
+                      style="width: 300px"
                       @update:model-value="markFormDirty(schema.name, 'fts')"
                     />
                   </td>
@@ -273,10 +278,14 @@ export default defineComponent({
     const formDirtyFlag = ref(false);
 
     const streamIndexType = [
-      { label: "Hash based partition", value: "hashPartition" },
-      { label: "Key based partition", value: "partitionKey" },
-      { label: "Raw Full Text Search", value: "fullTextSearchKey" },
+      { label: "Key partition", value: "keyPartition" },
       { label: "Bloom filter", value: "bloomFilterKey" },
+      { label: "Inverted Index", value: "fullTextSearchKey" },
+      { label: "Hash partition (8 Buckets)", value: "hashPartition_8" },
+      { label: "Hash partition (16 Buckets)", value: "hashPartition_16" },
+      { label: "Hash partition (32 Buckets)", value: "hashPartition_32" },
+      { label: "Hash partition (64 Buckets)", value: "hashPartition_64" },
+      { label: "Hash partition (128 Buckets)", value: "hashPartition_128" },
     ];
 
     onBeforeMount(() => {
@@ -393,7 +402,7 @@ export default defineComponent({
               )
             ) {
               property.index_type =
-                property.type === "values" ? "partitionKey" : "hashPartition";
+                property.type === "values" ? "keyPartition" : "hashPartition";
 
               property.level = Object.keys(
                 res.data.settings.partition_keys
@@ -440,7 +449,7 @@ export default defineComponent({
         if (property.index_type === "fullTextSearchKey") {
           settings.full_text_search_keys.push(property.name);
         }
-        if (property.level && property.index_type === "partitionKey") {
+        if (property.level && property.index_type === "keyPartition") {
           settings.partition_keys.push({
             field: property.name,
             types: "value",
@@ -450,7 +459,7 @@ export default defineComponent({
             field: property.name,
             types: "hash",
           });
-        } else if (property.index_type === "partitionKey") {
+        } else if (property.index_type === "keyPartition") {
           added_part_keys.push({
             field: property.name,
             types: "value",
@@ -522,6 +531,35 @@ export default defineComponent({
         modelValue.stream_type !== "enrichment_tables"
     );
 
+    const disableOptions = (schema, option) => {
+      let selectedHashPartition = "";
+
+      let selectedIndices = "";
+
+      for (let i = 0; i < (schema?.index_type || []).length; i++) {
+        if (schema.index_type[i].includes("hashPartition")) {
+          selectedHashPartition = schema.index_type[i];
+        }
+        selectedIndices += schema.index_type[i];
+      }
+
+      if (
+        selectedIndices.includes("hashPartition") &&
+        selectedHashPartition !== option.value &&
+        (option.value.includes("hashPartition") ||
+          option.value.includes("keyPartition"))
+      )
+        return true;
+
+      if (
+        selectedIndices.includes("keyPartition") &&
+        option.value.includes("hashPartition")
+      )
+        return true;
+
+      return false;
+    };
+
     return {
       t,
       q,
@@ -545,6 +583,7 @@ export default defineComponent({
       markFormDirty,
       formDirtyFlag,
       streamIndexType,
+      disableOptions,
     };
   },
   created() {
@@ -680,6 +719,21 @@ export default defineComponent({
   .sticky-buttons {
     background-color: var(--q-dark);
     box-shadow: 6px 6px 18px var(--q-dark);
+  }
+}
+</style>
+
+<style lang="scss">
+.stream-schema-index-select {
+  .q-field__control {
+    .q-field__control-container {
+      span {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        text-wrap: nowrap;
+        display: inline-block;
+      }
+    }
   }
 }
 </style>
